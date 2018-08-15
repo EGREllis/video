@@ -70,4 +70,48 @@ public class ImageProcessor {
         }
         return result;
     }
+
+    public int[][] getModalMatrix(int xWidth, int yWidth, BufferedImage image) {
+        Raster raster = image.getData();
+        int nXBuckets = 1+ (raster.getWidth() - raster.getMinX()) / xWidth;
+        int nYBuckets = 1+ (raster.getHeight() - raster.getMinY()) / yWidth;
+
+        System.out.println(String.format("Modal matrix:\n\tWidth (%1$d wide, %2$d per bucket -> %3$d buckets)\n\tHeight (%4$d high, %5$d per bucket) -> %6$d buckets", raster.getWidth(), xWidth, nXBuckets, raster.getHeight(), yWidth, nYBuckets));
+
+        // Initialise buckets with zero
+        int[][] output = new int[nYBuckets][];
+        for (int i = 0; i < nYBuckets; i++) {
+            output[i] = new int[nXBuckets];
+            for (int j = 0; j < nXBuckets; j++) {
+                output[i][j] = 0;
+            }
+        }
+
+        int[] pixel = new int[4];
+        for (int y = raster.getMinY(); y < raster.getHeight(); y++) {
+            for (int x = raster.getMinX(); x < raster.getWidth(); x++) {
+                pixel = raster.getPixel(x, y, pixel);
+                if (pixel[0] != 0 || pixel[1] != 0 || pixel[2] != 0) {
+                    int bucketx = (x - raster.getMinX()) / xWidth;
+                    int buckety = (y - raster.getMinY()) / yWidth;
+                    int temp = output[buckety][bucketx];
+                    output[buckety][bucketx] = temp+1;
+                }
+            }
+        }
+        return output;
+    }
+
+    public void logModalMatrix(int[][] modalMatrix) {
+        StringBuilder message = new StringBuilder();
+        message.append("Modal matrix\n");
+        for (int y = 0; y < modalMatrix.length; y++) {
+            message.append("|");
+            for (int x = 0; x < modalMatrix[0].length; x++) {
+                message.append(String.format("%1$d ", modalMatrix[y][x]));
+            }
+            message.append("|\n");
+        }
+        System.out.println(message.toString());
+    }
 }

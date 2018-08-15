@@ -112,6 +112,8 @@ public class Display {
         imageLabel.setIcon(new ImageIcon(filtered));
         frame.repaint();
         System.out.println("Updated...");
+        int[][] modalMatrix = processor.getModalMatrix(20, 20, filtered);
+        processor.logModalMatrix(modalMatrix);
     }
 
     private GridBagConstraints newGridBagConstraints() {
