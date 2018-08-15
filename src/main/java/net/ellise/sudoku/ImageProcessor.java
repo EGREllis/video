@@ -4,11 +4,9 @@ import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.util.Hashtable;
-import java.util.Map;
-import java.util.TreeMap;
 
 public class ImageProcessor {
-    public BufferedImage getTextureFilteredImage(BufferedImage image, int barrier, boolean above) throws Exception {
+    public BufferedImage getTextureFilteredImage(BufferedImage image, int barrier, boolean above) {
         Raster raster = image.getData();
 
         WritableRaster output = raster.createCompatibleWritableRaster();
@@ -17,7 +15,7 @@ public class ImageProcessor {
         int[] right = new int[4];
         int[] up = new int[4];
         int[] down = new int[4];
-        Map<Integer,Integer> contrasts = new TreeMap<>();
+
         int total = 0;
         int filtered = 0;
         for (int y = raster.getMinY(); y < raster.getHeight(); y++) {

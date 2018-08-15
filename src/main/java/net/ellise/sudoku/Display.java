@@ -3,13 +3,11 @@ package net.ellise.sudoku;
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamPanel;
 
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Display {
@@ -81,11 +79,7 @@ public class Display {
             process.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
-                    try {
-                        Display.this.updateDisplay();
-                    } catch (Exception ex) {
-                        throw new RuntimeException(ex);
-                    }
+                    Display.this.updateDisplay();
                 }
             });
             constraints.gridx = 1;
@@ -108,7 +102,7 @@ public class Display {
         }
     }
 
-    private void updateDisplay() throws Exception {
+    private void updateDisplay() {
         System.out.println("Updating...");
         int barrier = Integer.valueOf(barrierText.getText());
         BufferedImage image = webcam.getImage();
