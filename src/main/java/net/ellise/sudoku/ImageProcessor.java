@@ -1,6 +1,7 @@
 package net.ellise.sudoku;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.util.Hashtable;
@@ -113,5 +114,73 @@ public class ImageProcessor {
             message.append("|\n");
         }
         System.out.println(message.toString());
+    }
+
+    public BufferedImage annotateModalMatrix(BufferedImage contrast, int[][] modalMatrix, int xwidth, int ywidth) {
+        Raster raster = contrast.getData();
+        WritableRaster output = raster.createCompatibleWritableRaster();
+
+        int maxBucket = modalMatrix[0][0];
+        int maxBucketX = 0;
+        int maxBucketY = 0;
+        int[] freqX = new int[modalMatrix[0].length];
+        int[] freqY = new int[modalMatrix.length];
+        int total = 0;
+        for (int by = 0; by < modalMatrix.length; by++) {
+            for (int bx = 0; bx < modalMatrix[0].length; bx++) {
+                freqX[bx] += modalMatrix[by][bx];
+                freqY[by] += modalMatrix[by][bx];
+                total += modalMatrix[by][bx];
+
+                if (maxBucket < modalMatrix[by][bx]) {
+                    maxBucket = modalMatrix[by][bx];
+                    maxBucketX = bx;
+                    maxBucketY = by;
+                }
+            }
+        }
+
+        int maxX = 0;
+        int bucketX = 0;
+        int maxY = 0;
+        int bucketY = 0;
+        for (int i = 0; i < Math.max(freqX.length, freqY.length); i++) {
+            if (i < freqX.length && maxX < freqX[i]) {
+                maxX = freqX[i];
+                bucketX = i;
+            }
+            if (i < freqY.length && maxY < freqY[i]) {
+                maxY = freqY[i];
+                bucketY = i;
+            }
+        }
+
+        // Most dense bucket
+        int[] pixel = new int[4];
+        for (int y = maxBucketY * ywidth; y < (maxBucketY+1) * ywidth; y++) {
+            for (int x = maxBucketX * xwidth; x < (maxBucketX+1)*xwidth; x++) {
+                pixel = raster.getPixel(x, y, pixel);
+                output.setPixel(x, y, pixel);
+            }
+        }
+
+        // Most dense X bucket row
+        for (int x = bucketX * xwidth; x < (bucketX+1) * xwidth; x++) {
+            for (int y = raster.getMinY(); y < raster.getHeight(); y++) {
+                pixel = raster.getPixel(x, y, pixel);
+                output.setPixel(x, y, pixel);
+            }
+        }
+
+        // Most dense Y bucket column
+        for (int y = bucketY * ywidth; y < (bucketY+1)*ywidth; y++) {
+            for (int x = raster.getMinX(); x < raster.getHeight(); x++) {
+                pixel = raster.getPixel(x, y, pixel);
+                output.setPixel(x, y, pixel);
+            }
+        }
+
+        BufferedImage result = new BufferedImage(contrast.getColorModel(), output, true, new Hashtable<Object, Object>());
+        return result;
     }
 }

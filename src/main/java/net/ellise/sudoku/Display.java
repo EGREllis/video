@@ -109,10 +109,15 @@ public class Display {
         BufferedImage filtered = processor.getTextureFilteredImage(image, barrier, aboveBelowCheckBox.getModel().isSelected());
         GridBagConstraints constraints = newGridBagConstraints();
         constraints.gridx = 2;
-        imageLabel.setIcon(new ImageIcon(filtered));
+
+        int xWidth = 20;
+        int yWidth = 20;
+
+        int[][] modalMatrix = processor.getModalMatrix(xWidth, yWidth, filtered);
+        BufferedImage annotated = processor.annotateModalMatrix(filtered, modalMatrix, xWidth, yWidth);
+        imageLabel.setIcon(new ImageIcon(annotated));
         frame.repaint();
         System.out.println("Updated...");
-        int[][] modalMatrix = processor.getModalMatrix(20, 20, filtered);
         processor.logModalMatrix(modalMatrix);
     }
 
