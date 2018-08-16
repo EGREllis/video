@@ -1,7 +1,6 @@
 package net.ellise.sudoku;
 
 import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.util.Hashtable;
@@ -103,29 +102,16 @@ public class ImageProcessor {
         return output;
     }
 
-    public void logModalMatrix(int[][] modalMatrix) {
-        StringBuilder message = new StringBuilder();
-        message.append("Modal matrix\n");
-        for (int y = 0; y < modalMatrix.length; y++) {
-            message.append("|");
-            for (int x = 0; x < modalMatrix[0].length; x++) {
-                message.append(String.format("%1$d ", modalMatrix[y][x]));
-            }
-            message.append("|\n");
-        }
-        System.out.println(message.toString());
-    }
-
-    public BufferedImage annotateModalMatrix(BufferedImage contrast, int[][] modalMatrix, int xwidth, int ywidth) {
+    public BufferedImage annotateMostDenseRowColumn(BufferedImage contrast, Buckets buckets) {
         Raster raster = contrast.getData();
         WritableRaster output = raster.createCompatibleWritableRaster();
 
-        int[] freqX = new int[modalMatrix[0].length];
-        int[] freqY = new int[modalMatrix.length];
-        for (int by = 0; by < modalMatrix.length; by++) {
-            for (int bx = 0; bx < modalMatrix[0].length; bx++) {
-                freqX[bx] += modalMatrix[by][bx];
-                freqY[by] += modalMatrix[by][bx];
+        int[] freqX = new int[buckets.getNXBuckets()];
+        int[] freqY = new int[buckets.getNYBuckets()];
+        for (int by = 0; by < buckets.getNYBuckets(); by++) {
+            for (int bx = 0; bx < buckets.getNXBuckets(); bx++) {
+                freqX[bx] += buckets.getBucket(bx, by);
+                freqY[by] += buckets.getBucket(bx, by);
             }
         }
 
@@ -146,7 +132,7 @@ public class ImageProcessor {
 
         int[] pixel = new int[4];
         // Most dense X bucket row
-        for (int x = bucketX * xwidth; x < (bucketX+1) * xwidth; x++) {
+        for (int x = bucketX * buckets.getXWidth(); x < (bucketX+1) * buckets.getXWidth(); x++) {
             for (int y = raster.getMinY(); y < raster.getHeight(); y++) {
                 pixel = raster.getPixel(x, y, pixel);
                 output.setPixel(x, y, pixel);
@@ -154,28 +140,27 @@ public class ImageProcessor {
         }
 
         // Most dense Y bucket column
-        for (int y = bucketY * ywidth; y < (bucketY+1)*ywidth; y++) {
+        for (int y = bucketY * buckets.getYWidth(); y < (bucketY+1)*buckets.getYWidth(); y++) {
             for (int x = raster.getMinX(); x < raster.getHeight(); x++) {
                 pixel = raster.getPixel(x, y, pixel);
                 output.setPixel(x, y, pixel);
             }
         }
 
-        BufferedImage result = new BufferedImage(contrast.getColorModel(), output, true, new Hashtable<Object, Object>());
-        return result;
+        return new BufferedImage(contrast.getColorModel(), output, true, new Hashtable<>());
     }
 
-    public BufferedImage applyBucketBarrier(int barrier, BufferedImage contrast, int[][]modalMatrix, int bucketWidth, int bucketHeight) {
+    public BufferedImage applyBucketBarrier(int barrier, BufferedImage contrast, Buckets buckets) {
         Raster raster = contrast.getData();
         WritableRaster output = raster.createCompatibleWritableRaster();
 
         int[] pixel = new int[4];
-        for (int by = 0; by < modalMatrix.length; by++) {
-            for (int bx = 0; bx < modalMatrix[0].length; bx++) {
-                if (modalMatrix[by][bx] > barrier) {
-                    for (int y = by*bucketHeight; y < (by+1)*bucketHeight; y++) {
+        for (int by = 0; by < buckets.getNYBuckets(); by++) {
+            for (int bx = 0; bx < buckets.getNXBuckets(); bx++) {
+                if (buckets.getBucket(bx, by) > barrier) {
+                    for (int y = by*buckets.getYWidth(); y < (by+1)*buckets.getYWidth(); y++) {
                         if (y < raster.getWidth()) {
-                            for (int x = bx*bucketWidth; x < (bx+1)*bucketWidth; x++) {
+                            for (int x = bx*buckets.getXWidth(); x < (bx+1)*buckets.getYWidth(); x++) {
                                 if (x < raster.getHeight()) {
                                     pixel = raster.getPixel(x, y, pixel);
                                     output.setPixel(x, y, pixel);

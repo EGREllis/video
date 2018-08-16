@@ -89,7 +89,7 @@ public class Display {
             constraints.gridx = 2;
             frame.add(aboveBelowCheckBox, constraints);
 
-            JLabel bucketWidthLabel = new JLabel("Bucket Width:");
+            JLabel bucketWidthLabel = new JLabel("Buckets Width:");
             constraints.gridx = 1;
             constraints.gridy = 5;
             frame.add(bucketWidthLabel, constraints);
@@ -98,7 +98,7 @@ public class Display {
             constraints.gridx = 2;
             frame.add(bucketWidthText, constraints);
 
-            JLabel bucketHeightLabel = new JLabel("Bucket Height:");
+            JLabel bucketHeightLabel = new JLabel("Buckets Height:");
             constraints.gridx = 1;
             constraints.gridy = 6;
             frame.add(bucketHeightLabel, constraints);
@@ -107,7 +107,7 @@ public class Display {
             constraints.gridx = 2;
             frame.add(bucketHeightText, constraints);
 
-            JLabel bucketBarrierLabel = new JLabel("Bucket barrier:");
+            JLabel bucketBarrierLabel = new JLabel("Buckets barrier:");
             constraints.gridx = 1;
             constraints.gridy = 7;
             frame.add(bucketBarrierLabel, constraints);
@@ -155,11 +155,11 @@ public class Display {
         GridBagConstraints constraints = newGridBagConstraints();
         constraints.gridx = 2;
 
-        int[][] pixelModalMatrix = processor.getModalMatrix(xWidth, yWidth, filtered);
-        BufferedImage pixelAnnotated = processor.annotateModalMatrix(filtered, pixelModalMatrix, xWidth, yWidth);
-        BufferedImage bucketFiltered = processor.applyBucketBarrier(bucketBarrier, filtered, pixelModalMatrix, xWidth, yWidth);
-        int[][] bucketModalMatrix = processor.getModalMatrix(xWidth*2, yWidth*2, bucketFiltered);
-        BufferedImage bucketAnnotated = processor.annotateModalMatrix(filtered, bucketModalMatrix, xWidth*2, yWidth *2);
+        Buckets pixelBuckets = Buckets.createBucket(xWidth, yWidth, filtered);
+        BufferedImage pixelAnnotated = processor.annotateMostDenseRowColumn(filtered, pixelBuckets);
+        BufferedImage bucketFiltered = processor.applyBucketBarrier(bucketBarrier, filtered, pixelBuckets);
+        Buckets bucketBuckets = Buckets.createBucket(xWidth*2, yWidth*2, bucketFiltered);
+        BufferedImage bucketAnnotated = processor.annotateMostDenseRowColumn(filtered, bucketBuckets);
 
         images[0] = image;
         images[1] = filtered;
@@ -174,7 +174,6 @@ public class Display {
 
         imageLabel.setIcon(new ImageIcon(bucketFiltered));
         frame.repaint();
-        processor.logModalMatrix(pixelModalMatrix);
     }
 
     private class SlideShow implements Runnable {
