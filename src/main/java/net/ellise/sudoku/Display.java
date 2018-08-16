@@ -12,11 +12,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Display {
     private static final String INITIAL_CONTRAST_SETTING = "2000";
+    private static final String INITIAL_BUCKET_WIDTH = "20";
+    private static final String INITIAL_BUCKET_HEIGHT = "20";
+    private static final String INITIAL_BUCKET_BARRIER = "75";
     private ImageProcessor processor;
     private Webcam webcam;
     private JFrame frame;
     private JLabel imageLabel;
-    private JTextField barrierText;
+    private JTextField pixelBarrierText;
+    private JTextField bucketWidthText;
+    private JTextField bucketHeightText;
+    private JTextField bucketBarrierText;
     private JToggleButton aboveBelowCheckBox;
     private AtomicBoolean started = new AtomicBoolean(false);
 
@@ -26,6 +32,9 @@ public class Display {
         this.frame = null;
         this.imageLabel = null;
         this.aboveBelowCheckBox = null;
+        this.bucketWidthText = null;
+        this.bucketHeightText = null;
+        this.bucketBarrierText = null;
     }
 
     public void initialiseDisplay() throws Exception {
@@ -44,14 +53,14 @@ public class Display {
             constraints.gridwidth = 2;
             frame.add(separator, constraints);
 
-            JLabel barrierLabel = new JLabel("Barrier:");
+            JLabel barrierLabel = new JLabel("Pixel contrast barrier:");
             constraints.gridy = 3;
             constraints.gridwidth = 1;
             frame.add(barrierLabel, constraints);
 
-            barrierText = new JTextField(INITIAL_CONTRAST_SETTING);
+            pixelBarrierText = new JTextField(INITIAL_CONTRAST_SETTING);
             constraints.gridx = 2;
-            frame.add(barrierText, constraints);
+            frame.add(pixelBarrierText, constraints);
 
             JLabel aboveBelowLabel = new JLabel("Above/Below barrier (tick for above):");
             constraints.gridy=4;
@@ -75,6 +84,33 @@ public class Display {
             constraints.gridx = 2;
             frame.add(aboveBelowCheckBox, constraints);
 
+            JLabel bucketWidthLabel = new JLabel("Bucket Width:");
+            constraints.gridx = 1;
+            constraints.gridy = 5;
+            frame.add(bucketWidthLabel, constraints);
+
+            bucketWidthText = new JTextField(INITIAL_BUCKET_WIDTH);
+            constraints.gridx = 2;
+            frame.add(bucketWidthText, constraints);
+
+            JLabel bucketHeightLabel = new JLabel("Bucket Height:");
+            constraints.gridx = 1;
+            constraints.gridy = 6;
+            frame.add(bucketHeightLabel, constraints);
+
+            bucketHeightText = new JTextField(INITIAL_BUCKET_HEIGHT);
+            constraints.gridx = 2;
+            frame.add(bucketHeightText, constraints);
+
+            JLabel bucketBarrierLabel = new JLabel("Bucket barrier:");
+            constraints.gridx = 1;
+            constraints.gridy = 7;
+            frame.add(bucketBarrierLabel, constraints);
+
+            bucketBarrierText = new JTextField(INITIAL_BUCKET_BARRIER);
+            constraints.gridx = 2;
+            frame.add(bucketBarrierText, constraints);
+
             JButton process = new JButton("Process");
             process.addActionListener(new ActionListener() {
                 @Override
@@ -83,7 +119,7 @@ public class Display {
                 }
             });
             constraints.gridx = 1;
-            constraints.gridy = 5;
+            constraints.gridy = 8;
             constraints.gridwidth = 2;
             frame.add(process, constraints);
 
@@ -103,21 +139,22 @@ public class Display {
     }
 
     private void updateDisplay() {
-        System.out.println("Updating...");
-        int barrier = Integer.valueOf(barrierText.getText());
+        int barrier = Integer.valueOf(pixelBarrierText.getText());
+        int xWidth = Integer.valueOf(bucketWidthText.getText());
+        int yWidth = Integer.valueOf(bucketHeightText.getText());
+        int bucketBarrier = Integer.valueOf(bucketBarrierText.getText());
+        boolean isAbove = aboveBelowCheckBox.getModel().isSelected();
+
         BufferedImage image = webcam.getImage();
-        BufferedImage filtered = processor.getTextureFilteredImage(image, barrier, aboveBelowCheckBox.getModel().isSelected());
+        BufferedImage filtered = processor.getTextureFilteredImage(image, barrier, isAbove);
         GridBagConstraints constraints = newGridBagConstraints();
         constraints.gridx = 2;
 
-        int xWidth = 20;
-        int yWidth = 20;
-
         int[][] modalMatrix = processor.getModalMatrix(xWidth, yWidth, filtered);
-        BufferedImage annotated = processor.annotateModalMatrix(filtered, modalMatrix, xWidth, yWidth);
-        imageLabel.setIcon(new ImageIcon(annotated));
+        BufferedImage bucketFiltered = processor.applyBucketBarrier(bucketBarrier, filtered, modalMatrix, xWidth, yWidth);
+
+        imageLabel.setIcon(new ImageIcon(bucketFiltered));
         frame.repaint();
-        System.out.println("Updated...");
         processor.logModalMatrix(modalMatrix);
     }
 

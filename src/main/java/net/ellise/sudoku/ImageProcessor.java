@@ -125,12 +125,10 @@ public class ImageProcessor {
         int maxBucketY = 0;
         int[] freqX = new int[modalMatrix[0].length];
         int[] freqY = new int[modalMatrix.length];
-        int total = 0;
         for (int by = 0; by < modalMatrix.length; by++) {
             for (int bx = 0; bx < modalMatrix[0].length; bx++) {
                 freqX[bx] += modalMatrix[by][bx];
                 freqY[by] += modalMatrix[by][bx];
-                total += modalMatrix[by][bx];
 
                 if (maxBucket < modalMatrix[by][bx]) {
                     maxBucket = modalMatrix[by][bx];
@@ -182,5 +180,30 @@ public class ImageProcessor {
 
         BufferedImage result = new BufferedImage(contrast.getColorModel(), output, true, new Hashtable<Object, Object>());
         return result;
+    }
+
+    public BufferedImage applyBucketBarrier(int barrier, BufferedImage contrast, int[][]modalMatrix, int bucketWidth, int bucketHeight) {
+        Raster raster = contrast.getData();
+        WritableRaster output = raster.createCompatibleWritableRaster();
+
+        int[] pixel = new int[4];
+        for (int by = 0; by < modalMatrix.length; by++) {
+            for (int bx = 0; bx < modalMatrix[0].length; bx++) {
+                if (modalMatrix[by][bx] > barrier) {
+                    for (int y = by*bucketHeight; y < (by+1)*bucketHeight; y++) {
+                        if (y < raster.getWidth()) {
+                            for (int x = bx*bucketWidth; x < (bx+1)*bucketWidth; x++) {
+                                if (x < raster.getHeight()) {
+                                    pixel = raster.getPixel(x, y, pixel);
+                                    output.setPixel(x, y, pixel);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return new BufferedImage(contrast.getColorModel(), output, true, new Hashtable());
     }
 }
