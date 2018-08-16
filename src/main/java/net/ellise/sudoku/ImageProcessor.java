@@ -120,21 +120,12 @@ public class ImageProcessor {
         Raster raster = contrast.getData();
         WritableRaster output = raster.createCompatibleWritableRaster();
 
-        int maxBucket = modalMatrix[0][0];
-        int maxBucketX = 0;
-        int maxBucketY = 0;
         int[] freqX = new int[modalMatrix[0].length];
         int[] freqY = new int[modalMatrix.length];
         for (int by = 0; by < modalMatrix.length; by++) {
             for (int bx = 0; bx < modalMatrix[0].length; bx++) {
                 freqX[bx] += modalMatrix[by][bx];
                 freqY[by] += modalMatrix[by][bx];
-
-                if (maxBucket < modalMatrix[by][bx]) {
-                    maxBucket = modalMatrix[by][bx];
-                    maxBucketX = bx;
-                    maxBucketY = by;
-                }
             }
         }
 
@@ -153,15 +144,7 @@ public class ImageProcessor {
             }
         }
 
-        // Most dense bucket
         int[] pixel = new int[4];
-        for (int y = maxBucketY * ywidth; y < (maxBucketY+1) * ywidth; y++) {
-            for (int x = maxBucketX * xwidth; x < (maxBucketX+1)*xwidth; x++) {
-                pixel = raster.getPixel(x, y, pixel);
-                output.setPixel(x, y, pixel);
-            }
-        }
-
         // Most dense X bucket row
         for (int x = bucketX * xwidth; x < (bucketX+1) * xwidth; x++) {
             for (int y = raster.getMinY(); y < raster.getHeight(); y++) {

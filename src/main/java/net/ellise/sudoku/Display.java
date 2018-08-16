@@ -15,6 +15,8 @@ public class Display {
     private static final String INITIAL_BUCKET_WIDTH = "20";
     private static final String INITIAL_BUCKET_HEIGHT = "20";
     private static final String INITIAL_BUCKET_BARRIER = "75";
+    private static final long SLIDE_DELAY = 1000;
+    private static final int NSLIDES = 5;
     private ImageProcessor processor;
     private Webcam webcam;
     private JFrame frame;
@@ -25,6 +27,8 @@ public class Display {
     private JTextField bucketBarrierText;
     private JToggleButton aboveBelowCheckBox;
     private AtomicBoolean started = new AtomicBoolean(false);
+    private AtomicBoolean slideStarted = new AtomicBoolean(false);
+    private volatile BufferedImage[] images;
 
     public Display(Webcam webcam, ImageProcessor processor) {
         this.webcam = webcam;
@@ -35,6 +39,7 @@ public class Display {
         this.bucketWidthText = null;
         this.bucketHeightText = null;
         this.bucketBarrierText = null;
+        this.images = new BufferedImage[NSLIDES];
     }
 
     public void initialiseDisplay() throws Exception {
@@ -150,12 +155,42 @@ public class Display {
         GridBagConstraints constraints = newGridBagConstraints();
         constraints.gridx = 2;
 
-        int[][] modalMatrix = processor.getModalMatrix(xWidth, yWidth, filtered);
-        BufferedImage bucketFiltered = processor.applyBucketBarrier(bucketBarrier, filtered, modalMatrix, xWidth, yWidth);
+        int[][] pixelModalMatrix = processor.getModalMatrix(xWidth, yWidth, filtered);
+        BufferedImage pixelAnnotated = processor.annotateModalMatrix(filtered, pixelModalMatrix, xWidth, yWidth);
+        BufferedImage bucketFiltered = processor.applyBucketBarrier(bucketBarrier, filtered, pixelModalMatrix, xWidth, yWidth);
+        int[][] bucketModalMatrix = processor.getModalMatrix(xWidth*2, yWidth*2, bucketFiltered);
+        BufferedImage bucketAnnotated = processor.annotateModalMatrix(filtered, bucketModalMatrix, xWidth*2, yWidth *2);
+
+        images[0] = image;
+        images[1] = filtered;
+        images[2] = pixelAnnotated;
+        images[3] = bucketFiltered;
+        images[4] = bucketAnnotated;
+
+        if (slideStarted.compareAndSet(false, true)) {
+            Thread slideShow = new Thread(new SlideShow());
+            slideShow.start();
+        }
 
         imageLabel.setIcon(new ImageIcon(bucketFiltered));
         frame.repaint();
-        processor.logModalMatrix(modalMatrix);
+        processor.logModalMatrix(pixelModalMatrix);
+    }
+
+    private class SlideShow implements Runnable {
+        @Override
+        public void run() {
+            try {
+                while (true) {
+                    for (int counter = 0; counter < NSLIDES; counter++) {
+                        Display.this.imageLabel.setIcon(new ImageIcon(images[counter]));
+                        Thread.sleep(SLIDE_DELAY);
+                    }
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     private GridBagConstraints newGridBagConstraints() {
