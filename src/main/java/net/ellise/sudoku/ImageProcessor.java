@@ -6,7 +6,7 @@ import java.awt.image.WritableRaster;
 import java.util.Hashtable;
 
 public class ImageProcessor {
-    public BufferedImage getTextureFilteredImage(BufferedImage image, int barrier, boolean above) {
+    public Filtered getTextureFilteredImage(BufferedImage image, int barrier, boolean above) {
         Raster raster = image.getData();
 
         WritableRaster output = raster.createCompatibleWritableRaster();
@@ -16,7 +16,6 @@ public class ImageProcessor {
         int[] up = new int[4];
         int[] down = new int[4];
 
-        int total = 0;
         int filtered = 0;
         for (int y = raster.getMinY(); y < raster.getHeight(); y++) {
             for (int x = raster.getMinX(); x < raster.getWidth(); x++) {
@@ -47,20 +46,10 @@ public class ImageProcessor {
                     output.setPixel(x, y, pixel);
                     filtered++;
                 }
-                total++;
-            }
-        }
-        System.out.println(String.format("Filtered at barrier %1$d; total pixels: %2$d; filtered pixels: %3$d [%4$d, %5$d]", barrier, total, filtered, raster.getWidth(), raster.getHeight()));
-
-        Hashtable properties = null;
-        if (image.getPropertyNames() != null) {
-            properties = new Hashtable();
-            for (String key : image.getPropertyNames()) {
-                properties.put(key, image.getProperty(key));
             }
         }
 
-        return new BufferedImage(image.getColorModel(), output, true, properties);
+        return new Filtered(new BufferedImage(image.getColorModel(), output, true, new Hashtable()), filtered);
     }
 
     private static int diffPixel(int[] pixel, int[] other) {
@@ -71,38 +60,8 @@ public class ImageProcessor {
         return result;
     }
 
-    public int[][] getModalMatrix(int xWidth, int yWidth, BufferedImage image) {
-        Raster raster = image.getData();
-        int nXBuckets = 1+ (raster.getWidth() - raster.getMinX()) / xWidth;
-        int nYBuckets = 1+ (raster.getHeight() - raster.getMinY()) / yWidth;
 
-        System.out.println(String.format("Modal matrix:\n\tWidth (%1$d wide, %2$d per bucket -> %3$d buckets)\n\tHeight (%4$d high, %5$d per bucket) -> %6$d buckets", raster.getWidth(), xWidth, nXBuckets, raster.getHeight(), yWidth, nYBuckets));
-
-        // Initialise buckets with zero
-        int[][] output = new int[nYBuckets][];
-        for (int i = 0; i < nYBuckets; i++) {
-            output[i] = new int[nXBuckets];
-            for (int j = 0; j < nXBuckets; j++) {
-                output[i][j] = 0;
-            }
-        }
-
-        int[] pixel = new int[4];
-        for (int y = raster.getMinY(); y < raster.getHeight(); y++) {
-            for (int x = raster.getMinX(); x < raster.getWidth(); x++) {
-                pixel = raster.getPixel(x, y, pixel);
-                if (pixel[0] != 0 || pixel[1] != 0 || pixel[2] != 0) {
-                    int bucketx = (x - raster.getMinX()) / xWidth;
-                    int buckety = (y - raster.getMinY()) / yWidth;
-                    int temp = output[buckety][bucketx];
-                    output[buckety][bucketx] = temp+1;
-                }
-            }
-        }
-        return output;
-    }
-
-    public BufferedImage annotateMostDenseRowColumn(BufferedImage contrast, Buckets buckets) {
+    public BufferedImage filterMostDenseRowAndColumn(BufferedImage contrast, Buckets buckets) {
         Raster raster = contrast.getData();
         WritableRaster output = raster.createCompatibleWritableRaster();
 
@@ -115,20 +74,32 @@ public class ImageProcessor {
             }
         }
 
+
+        StringBuilder rows = new StringBuilder();
+        StringBuilder cols = new StringBuilder();
+        rows.append("rows|");
+        cols.append("cols|");
         int maxX = 0;
         int bucketX = 0;
         int maxY = 0;
         int bucketY = 0;
         for (int i = 0; i < Math.max(freqX.length, freqY.length); i++) {
-            if (i < freqX.length && maxX < freqX[i]) {
-                maxX = freqX[i];
-                bucketX = i;
+            if (i < freqX.length) {
+                rows.append(String.format(" %1$d |", freqX[i]));
+                if (maxX < freqX[i]) {
+                    maxX = freqX[i];
+                    bucketX = i;
+                }
             }
-            if (i < freqY.length && maxY < freqY[i]) {
-                maxY = freqY[i];
-                bucketY = i;
+            if (i < freqY.length) {
+                cols.append(String.format(" %1$d |", freqY[i]));
+                if (maxY < freqY[i]) {
+                    maxY = freqY[i];
+                    bucketY = i;
+                }
             }
         }
+        System.out.println(rows.toString()+"\n"+cols.toString());
 
         int[] pixel = new int[4];
         // Most dense X bucket row
@@ -150,10 +121,11 @@ public class ImageProcessor {
         return new BufferedImage(contrast.getColorModel(), output, true, new Hashtable<>());
     }
 
-    public BufferedImage applyBucketBarrier(int barrier, BufferedImage contrast, Buckets buckets) {
+    public Filtered applyBucketFilter(int barrier, BufferedImage contrast, Buckets buckets) {
         Raster raster = contrast.getData();
         WritableRaster output = raster.createCompatibleWritableRaster();
 
+        int filtered = 0;
         int[] pixel = new int[4];
         for (int by = 0; by < buckets.getNYBuckets(); by++) {
             for (int bx = 0; bx < buckets.getNXBuckets(); bx++) {
@@ -164,6 +136,7 @@ public class ImageProcessor {
                                 if (x < raster.getHeight()) {
                                     pixel = raster.getPixel(x, y, pixel);
                                     output.setPixel(x, y, pixel);
+                                    filtered++;
                                 }
                             }
                         }
@@ -172,6 +145,6 @@ public class ImageProcessor {
             }
         }
 
-        return new BufferedImage(contrast.getColorModel(), output, true, new Hashtable());
+        return new Filtered(new BufferedImage(contrast.getColorModel(), output, true, new Hashtable()), filtered);
     }
 }

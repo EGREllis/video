@@ -15,8 +15,6 @@ public class Display {
     private static final String INITIAL_BUCKET_WIDTH = "20";
     private static final String INITIAL_BUCKET_HEIGHT = "20";
     private static final String INITIAL_BUCKET_BARRIER = "75";
-    private static final long SLIDE_DELAY = 1000;
-    private static final int NSLIDES = 5;
     private ImageProcessor processor;
     private Webcam webcam;
     private JFrame frame;
@@ -27,8 +25,7 @@ public class Display {
     private JTextField bucketBarrierText;
     private JToggleButton aboveBelowCheckBox;
     private AtomicBoolean started = new AtomicBoolean(false);
-    private AtomicBoolean slideStarted = new AtomicBoolean(false);
-    private volatile BufferedImage[] images;
+    private SlideShow slideShow;
 
     public Display(Webcam webcam, ImageProcessor processor) {
         this.webcam = webcam;
@@ -39,7 +36,6 @@ public class Display {
         this.bucketWidthText = null;
         this.bucketHeightText = null;
         this.bucketBarrierText = null;
-        this.images = new BufferedImage[NSLIDES];
     }
 
     public void initialiseDisplay() throws Exception {
@@ -134,6 +130,7 @@ public class Display {
             constraints.gridx = 2;
             frame.add(imageLabel, constraints);
 
+            slideShow = new SlideShow(imageLabel);
             updateDisplay();
 
             frame.setResizable(true);
@@ -150,32 +147,81 @@ public class Display {
         int bucketBarrier = Integer.valueOf(bucketBarrierText.getText());
         boolean isAbove = aboveBelowCheckBox.getModel().isSelected();
 
+        slideShow.clear();
+
         BufferedImage image = webcam.getImage();
-        BufferedImage filtered = processor.getTextureFilteredImage(image, barrier, isAbove);
-        GridBagConstraints constraints = newGridBagConstraints();
-        constraints.gridx = 2;
+        slideShow.addSlide(image);
 
-        Buckets pixelBuckets = Buckets.createBucket(xWidth, yWidth, filtered);
-        BufferedImage pixelAnnotated = processor.annotateMostDenseRowColumn(filtered, pixelBuckets);
-        BufferedImage bucketFiltered = processor.applyBucketBarrier(bucketBarrier, filtered, pixelBuckets);
-        Buckets bucketBuckets = Buckets.createBucket(xWidth*2, yWidth*2, bucketFiltered);
-        BufferedImage bucketAnnotated = processor.annotateMostDenseRowColumn(filtered, bucketBuckets);
+        int total = image.getHeight() * image.getWidth();
+        int target = total / 10; // Aim for 10% of the pixels
+        int previousBarrier = barrier;
+        int currentBarrier = barrier/2;
+        Filtered previousFiltered = processor.getTextureFilteredImage(image, previousBarrier, isAbove);
+        slideShow.addSlide(previousFiltered.getImage());
+        Filtered currentFiltered = processor.getTextureFilteredImage(image, currentBarrier, isAbove);
+        slideShow.addSlide(currentFiltered.getImage());
+        double tolerance = 0.0001;
+        for (int i = 0; i < 8 ; i++) {
+            double dPixels = (double)Math.abs(target - currentFiltered.getPresent());
+            System.out.println(String.format("Distance to target %1$f; Relative distance %2$f; Tolerance %3$f", dPixels, dPixels/total, tolerance));
+            if ((dPixels/total) < tolerance) {
+                System.out.println("Reached target within tolerance");
+                break;
+            }
+            int x1 = previousBarrier;
+            int y1 = previousFiltered.getPresent();
+            int x2 = currentBarrier;
+            long y2 = currentFiltered.getPresent();
+            long dy = y2-y1;
+            long dx = x2-x1;
+            /*
+                Let y be the number of visible pixels post filter
+                Let x be the barrier of the filter
+                Assume linear relationship (untrue)
 
-        images[0] = image;
-        images[1] = filtered;
-        images[2] = pixelAnnotated;
-        images[3] = bucketFiltered;
-        images[4] = bucketAnnotated;
+                y = mx + c
+                y = (dy/dx)x + c
 
-        if (slideStarted.compareAndSet(false, true)) {
-            Thread slideShow = new Thread(new SlideShow());
-            slideShow.start();
+                Rearrange for c, substituting a known point (x2, y2)
+                c = y2-(dy/dx)x2
+                Substitute into the previous
+                y = (dy/dx)x + y2-(dy/dx)x2
+
+                We want to find the barrier "expected" when the filter returns the target number of pixels
+                target = (dy/dx)x + y2-(dy/dx)x2
+                Rearrange to find x
+                x = (target - y2 + (dy/dx)x2)/(dy/dx)
+             */
+
+            int nextBarrier = (int) ((target - y2 + (dy/dx)*x2)/(dy/dx));
+
+            if (nextBarrier == currentBarrier) {
+                System.out.println("Would retry previous barrier - aborting...");
+                break;
+            }
+
+            previousBarrier = currentBarrier;
+            currentBarrier = nextBarrier;
+            previousFiltered = currentFiltered;
+            currentFiltered = processor.getTextureFilteredImage(image, currentBarrier, isAbove);
+            slideShow.addSlide(currentFiltered.getImage());
         }
 
-        imageLabel.setIcon(new ImageIcon(bucketFiltered));
+        Buckets pixelBuckets = Buckets.createBucket(xWidth, yWidth, currentFiltered.getImage());
+        BufferedImage pixelAnnotated = processor.filterMostDenseRowAndColumn(currentFiltered.getImage(), pixelBuckets);
+        slideShow.addSlide(pixelAnnotated);
+        Filtered bucketFiltered = processor.applyBucketFilter(bucketBarrier, currentFiltered.getImage(), pixelBuckets);
+        slideShow.addSlide(bucketFiltered.getImage());
+        Buckets bucketBuckets = Buckets.createBucket(xWidth*2, yWidth*2, bucketFiltered.getImage());
+        BufferedImage bucketAnnotated = processor.filterMostDenseRowAndColumn(currentFiltered.getImage(), bucketBuckets);
+        slideShow.addSlide(bucketAnnotated);
+
+        slideShow.start();
+
         frame.repaint();
     }
 
+    /*
     private class SlideShow implements Runnable {
         @Override
         public void run() {
@@ -191,6 +237,7 @@ public class Display {
             }
         }
     }
+    */
 
     private GridBagConstraints newGridBagConstraints() {
         GridBagConstraints constraints = new GridBagConstraints();
