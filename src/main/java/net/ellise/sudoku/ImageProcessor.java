@@ -170,19 +170,18 @@ public class ImageProcessor {
         return new Filtered(new BufferedImage(image.getColorModel(), output, true, new Hashtable<>()), filtered);
     }
 
-    public UnionFind determineRegions(BufferedImage image, int pixelDifference) {
+    public UnionFind determineRegions(BufferedImage image, int neighbourRange) {
         Raster raster = image.getData();
         UnionFind result = UnionFind.regionFor(image);
-        int[] black = new int[4];
         int[] pixel = new int[4];
         int[] other = new int[4];
         for (int y = raster.getMinY(); y < raster.getHeight(); y++) {
             for (int x = raster.getMinX(); x < raster.getWidth(); x++) {
                 pixel = raster.getPixel(x, y, pixel);
-                if (!sameRegion(pixel, black, pixelDifference)) {
-                    for (Point point : getNeighbouringPoints(x, y, raster)) {
+                if (!isNotBlack(pixel)) {
+                    for (Point point : getNeighbouringPoints(x, y, raster, neighbourRange)) {
                         other = raster.getPixel(point.x, point.y, other);
-                        if (!sameRegion(other, black, pixelDifference)) {
+                        if (!isNotBlack(other)) {
                             result.connect(x, y, point.x, point.y);
                         }
                     }
@@ -193,7 +192,7 @@ public class ImageProcessor {
         return result;
     }
 
-    private Set<Point> getNeighbouringPoints(int x, int y, Raster raster) {
+    private Set<Point> getNeighbouringPoints(int x, int y, Raster raster, int range) {
         Set<Point> result = new HashSet<>();
         Set<Point> directions = new HashSet<>();
         for (int[] dir : new int[][]{{1, 1}, {1, 0}, {1, -1}, {0, 1}, {0, -1}, {-1, 1}, {-1, 0}, {-1,-1}}) {
@@ -202,7 +201,7 @@ public class ImageProcessor {
 
         Set<Point> currentRing = new HashSet<>();
         Set<Point> previousRing = new HashSet<>(directions);
-        for (int i  = 0; i < 3; i++) {
+        for (int i  = 0; i < range; i++) {
             currentRing = new HashSet<>();
             for (Point prev : previousRing) {
                 for (Point dir : directions) {
@@ -225,11 +224,11 @@ public class ImageProcessor {
         return result;
     }
 
-    private boolean sameRegion(int[] pixel1, int[] pixel2, int pixelDifference) {
-        boolean result = true;
+    private boolean isNotBlack(int[] pixel) {
+        boolean result = false;
         for (int i = 0; i < 3; i++) {
-            if (Math.abs(pixel1[i] - pixel2[i]) > pixelDifference) {
-                result = false;
+            if (Math.abs(pixel[i]) < 20) {
+                result = true;
                 break;
             }
         }

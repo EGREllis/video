@@ -25,10 +25,11 @@ public class Controller {
         BufferedImage bucketAnnotated = processor.filterMostDenseRowAndColumn(currentFiltered.getImage(), bucketBuckets);
         slideShow.addSlide(bucketAnnotated);
 
-        int pixelDifference = 20; // From black
-        UnionFind regions = processor.determineRegions(currentFiltered.getImage(), pixelDifference);
-        System.out.println(String.format("NRegions %1$d with pixel difference %2$d", regions.getNumberOfRegions(), pixelDifference));
+        int neighbourRange = 2; // From black
+        UnionFind regions = processor.determineRegions(currentFiltered.getImage(), neighbourRange);
+        System.out.println(String.format("NRegions %1$d with pixel difference %2$d", regions.getNumberOfRegions(), neighbourRange));
         Map<Integer,Integer> regionSize = regions.getSizeOfRegions();
+        slideShow.addSlide(processor.applyRegionFilter(currentFiltered.getImage(), regions, regions.getBiggestGroup()).getImage());
         for (int region = 0; region < regions.getMaxRegion(); region++) {
             if (regionSize.containsKey(region) && regionSize.get(region) > 30) {
                 slideShow.addSlide(processor.applyRegionFilter(currentFiltered.getImage(), regions, region).getImage());
@@ -42,9 +43,7 @@ public class Controller {
         int previousBarrier = barrier;
         int currentBarrier = barrier/2;
         Filtered previousFiltered = processor.getTextureFilteredImage(image, previousBarrier, isAbove);
-        //slideShow.addSlide(previousFiltered.getImage());
         Filtered currentFiltered = processor.getTextureFilteredImage(image, currentBarrier, isAbove);
-        //slideShow.addSlide(currentFiltered.getImage());
         double tolerance = 0.0001;
         for (int i = 0; i < 8 ; i++) {
             double dPixels = (double)Math.abs(target - currentFiltered.getPresent());

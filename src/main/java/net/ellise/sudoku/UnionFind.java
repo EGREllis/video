@@ -76,6 +76,19 @@ public class UnionFind {
         map = normalised;
     }
 
+    public int getBiggestGroup() {
+        Map<Integer,Integer> sizes = getSizeOfRegions();
+        int key = 0;
+        int max = sizes.get(0);
+        for (Map.Entry<Integer,Integer> entry : sizes.entrySet()) {
+            if (entry.getValue() > max) {
+                key = entry.getKey();
+                max = entry.getValue();
+            }
+        }
+        return key;
+    }
+
     public Map<Integer, Integer> getSizeOfRegions() {
         Map<Integer, Integer> result = new HashMap<>();
         for (Map.Entry<Long, Integer> entry : map.entrySet()) {
