@@ -1,6 +1,7 @@
 package net.ellise.sudoku;
 
 import java.awt.image.BufferedImage;
+import java.util.Map;
 
 public class Controller {
     private ImageProcessor processor;
@@ -13,6 +14,7 @@ public class Controller {
 
     public void process(BufferedImage image, int barrier, boolean isAbove, int xWidth, int yWidth, int bucketBarrier) {
         Filtered currentFiltered = seekBestTextureFilter(image, barrier, isAbove);
+        slideShow.addSlide(currentFiltered.getImage());
 
         Buckets pixelBuckets = Buckets.createBucket(xWidth, yWidth, currentFiltered.getImage());
         BufferedImage pixelAnnotated = processor.filterMostDenseRowAndColumn(currentFiltered.getImage(), pixelBuckets);
@@ -22,6 +24,16 @@ public class Controller {
         Buckets bucketBuckets = Buckets.createBucket(xWidth*2, yWidth*2, bucketFiltered.getImage());
         BufferedImage bucketAnnotated = processor.filterMostDenseRowAndColumn(currentFiltered.getImage(), bucketBuckets);
         slideShow.addSlide(bucketAnnotated);
+
+        int pixelDifference = 20; // From black
+        UnionFind regions = processor.determineRegions(currentFiltered.getImage(), pixelDifference);
+        System.out.println(String.format("NRegions %1$d with pixel difference %2$d", regions.getNumberOfRegions(), pixelDifference));
+        Map<Integer,Integer> regionSize = regions.getSizeOfRegions();
+        for (int region = 0; region < regions.getMaxRegion(); region++) {
+            if (regionSize.containsKey(region) && regionSize.get(region) > 30) {
+                slideShow.addSlide(processor.applyRegionFilter(currentFiltered.getImage(), regions, region).getImage());
+            }
+        }
     }
 
     private Filtered seekBestTextureFilter(BufferedImage image, int barrier, boolean isAbove) {
@@ -30,9 +42,9 @@ public class Controller {
         int previousBarrier = barrier;
         int currentBarrier = barrier/2;
         Filtered previousFiltered = processor.getTextureFilteredImage(image, previousBarrier, isAbove);
-        slideShow.addSlide(previousFiltered.getImage());
+        //slideShow.addSlide(previousFiltered.getImage());
         Filtered currentFiltered = processor.getTextureFilteredImage(image, currentBarrier, isAbove);
-        slideShow.addSlide(currentFiltered.getImage());
+        //slideShow.addSlide(currentFiltered.getImage());
         double tolerance = 0.0001;
         for (int i = 0; i < 8 ; i++) {
             double dPixels = (double)Math.abs(target - currentFiltered.getPresent());
@@ -77,7 +89,6 @@ public class Controller {
             currentBarrier = nextBarrier;
             previousFiltered = currentFiltered;
             currentFiltered = processor.getTextureFilteredImage(image, currentBarrier, isAbove);
-            slideShow.addSlide(currentFiltered.getImage());
         }
         return currentFiltered;
     }

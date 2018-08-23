@@ -1,9 +1,12 @@
 package net.ellise.sudoku;
 
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
+import java.util.HashSet;
 import java.util.Hashtable;
+import java.util.Set;
 
 public class ImageProcessor {
     public Filtered getTextureFilteredImage(BufferedImage image, int barrier, boolean above) {
@@ -146,5 +149,90 @@ public class ImageProcessor {
         }
 
         return new Filtered(new BufferedImage(contrast.getColorModel(), output, true, new Hashtable()), filtered);
+    }
+
+    public Filtered applyRegionFilter(BufferedImage image, UnionFind regions, int region) {
+        Raster raster = image.getData();
+        WritableRaster output = raster.createCompatibleWritableRaster();
+
+        int filtered = 0;
+        int[] pixel = new int[4];
+        for (int y = raster.getMinY(); y < raster.getHeight(); y++) {
+            for (int x = raster.getMinX(); x < raster.getWidth(); x++) {
+                if (region == regions.getRegion(x, y)) {
+                    pixel = raster.getPixel(x, y, pixel);
+                    output.setPixel(x, y, pixel);
+                    filtered++;
+                }
+            }
+        }
+
+        return new Filtered(new BufferedImage(image.getColorModel(), output, true, new Hashtable<>()), filtered);
+    }
+
+    public UnionFind determineRegions(BufferedImage image, int pixelDifference) {
+        Raster raster = image.getData();
+        UnionFind result = UnionFind.regionFor(image);
+        int[] black = new int[4];
+        int[] pixel = new int[4];
+        int[] other = new int[4];
+        for (int y = raster.getMinY(); y < raster.getHeight(); y++) {
+            for (int x = raster.getMinX(); x < raster.getWidth(); x++) {
+                pixel = raster.getPixel(x, y, pixel);
+                if (!sameRegion(pixel, black, pixelDifference)) {
+                    for (Point point : getNeighbouringPoints(x, y, raster)) {
+                        other = raster.getPixel(point.x, point.y, other);
+                        if (!sameRegion(other, black, pixelDifference)) {
+                            result.connect(x, y, point.x, point.y);
+                        }
+                    }
+                }
+            }
+        }
+        result.normalise();
+        return result;
+    }
+
+    private Set<Point> getNeighbouringPoints(int x, int y, Raster raster) {
+        Set<Point> result = new HashSet<>();
+        Set<Point> directions = new HashSet<>();
+        for (int[] dir : new int[][]{{1, 1}, {1, 0}, {1, -1}, {0, 1}, {0, -1}, {-1, 1}, {-1, 0}, {-1,-1}}) {
+            directions.add(new Point(dir[0], dir[1]));
+        }
+
+        Set<Point> currentRing = new HashSet<>();
+        Set<Point> previousRing = new HashSet<>(directions);
+        for (int i  = 0; i < 3; i++) {
+            currentRing = new HashSet<>();
+            for (Point prev : previousRing) {
+                for (Point dir : directions) {
+                    currentRing.add(new Point(prev.x+dir.x, prev.y+dir.y));
+                }
+            }
+            currentRing.remove(new Point(0,0));
+            previousRing = currentRing;
+        }
+
+        for (Point dir : currentRing) {
+            Point point = new Point(x+dir.x, y+dir.y);
+            if (    point.x >= raster.getMinX() &&
+                    point.x < raster.getWidth() &&
+                    point.y >= raster.getMinY() &&
+                    point.y < raster.getHeight()) {
+                result.add(point);
+            }
+        }
+        return result;
+    }
+
+    private boolean sameRegion(int[] pixel1, int[] pixel2, int pixelDifference) {
+        boolean result = true;
+        for (int i = 0; i < 3; i++) {
+            if (Math.abs(pixel1[i] - pixel2[i]) > pixelDifference) {
+                result = false;
+                break;
+            }
+        }
+        return result;
     }
 }
