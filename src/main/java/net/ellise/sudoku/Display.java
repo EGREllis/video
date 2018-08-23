@@ -26,6 +26,7 @@ public class Display {
     private JToggleButton aboveBelowCheckBox;
     private AtomicBoolean started = new AtomicBoolean(false);
     private SlideShow slideShow;
+    private Controller controller;
 
     public Display(Webcam webcam, ImageProcessor processor) {
         this.webcam = webcam;
@@ -131,6 +132,7 @@ public class Display {
             frame.add(imageLabel, constraints);
 
             slideShow = new SlideShow(imageLabel);
+            controller = new Controller(processor, slideShow);
             updateDisplay();
 
             frame.setResizable(true);
@@ -152,92 +154,12 @@ public class Display {
         BufferedImage image = webcam.getImage();
         slideShow.addSlide(image);
 
-        int total = image.getHeight() * image.getWidth();
-        int target = total / 10; // Aim for 10% of the pixels
-        int previousBarrier = barrier;
-        int currentBarrier = barrier/2;
-        Filtered previousFiltered = processor.getTextureFilteredImage(image, previousBarrier, isAbove);
-        slideShow.addSlide(previousFiltered.getImage());
-        Filtered currentFiltered = processor.getTextureFilteredImage(image, currentBarrier, isAbove);
-        slideShow.addSlide(currentFiltered.getImage());
-        double tolerance = 0.0001;
-        for (int i = 0; i < 8 ; i++) {
-            double dPixels = (double)Math.abs(target - currentFiltered.getPresent());
-            System.out.println(String.format("Distance to target %1$f; Relative distance %2$f; Tolerance %3$f", dPixels, dPixels/total, tolerance));
-            if ((dPixels/total) < tolerance) {
-                System.out.println("Reached target within tolerance");
-                break;
-            }
-            int x1 = previousBarrier;
-            int y1 = previousFiltered.getPresent();
-            int x2 = currentBarrier;
-            long y2 = currentFiltered.getPresent();
-            long dy = y2-y1;
-            long dx = x2-x1;
-            /*
-                Let y be the number of visible pixels post filter
-                Let x be the barrier of the filter
-                Assume linear relationship (untrue)
-
-                y = mx + c
-                y = (dy/dx)x + c
-
-                Rearrange for c, substituting a known point (x2, y2)
-                c = y2-(dy/dx)x2
-                Substitute into the previous
-                y = (dy/dx)x + y2-(dy/dx)x2
-
-                We want to find the barrier "expected" when the filter returns the target number of pixels
-                target = (dy/dx)x + y2-(dy/dx)x2
-                Rearrange to find x
-                x = (target - y2 + (dy/dx)x2)/(dy/dx)
-             */
-
-            int nextBarrier = (int) ((target - y2 + (dy/dx)*x2)/(dy/dx));
-
-            if (nextBarrier == currentBarrier) {
-                System.out.println("Would retry previous barrier - aborting...");
-                break;
-            }
-
-            previousBarrier = currentBarrier;
-            currentBarrier = nextBarrier;
-            previousFiltered = currentFiltered;
-            currentFiltered = processor.getTextureFilteredImage(image, currentBarrier, isAbove);
-            slideShow.addSlide(currentFiltered.getImage());
-        }
-
-        Buckets pixelBuckets = Buckets.createBucket(xWidth, yWidth, currentFiltered.getImage());
-        BufferedImage pixelAnnotated = processor.filterMostDenseRowAndColumn(currentFiltered.getImage(), pixelBuckets);
-        slideShow.addSlide(pixelAnnotated);
-        Filtered bucketFiltered = processor.applyBucketFilter(bucketBarrier, currentFiltered.getImage(), pixelBuckets);
-        slideShow.addSlide(bucketFiltered.getImage());
-        Buckets bucketBuckets = Buckets.createBucket(xWidth*2, yWidth*2, bucketFiltered.getImage());
-        BufferedImage bucketAnnotated = processor.filterMostDenseRowAndColumn(currentFiltered.getImage(), bucketBuckets);
-        slideShow.addSlide(bucketAnnotated);
+        controller.process(image, barrier, isAbove, xWidth, yWidth, bucketBarrier);
 
         slideShow.start();
 
         frame.repaint();
     }
-
-    /*
-    private class SlideShow implements Runnable {
-        @Override
-        public void run() {
-            try {
-                while (true) {
-                    for (int counter = 0; counter < NSLIDES; counter++) {
-                        Display.this.imageLabel.setIcon(new ImageIcon(images[counter]));
-                        Thread.sleep(SLIDE_DELAY);
-                    }
-                }
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-    */
 
     private GridBagConstraints newGridBagConstraints() {
         GridBagConstraints constraints = new GridBagConstraints();
