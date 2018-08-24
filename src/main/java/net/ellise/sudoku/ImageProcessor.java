@@ -9,7 +9,7 @@ import java.util.Hashtable;
 import java.util.Set;
 
 public class ImageProcessor {
-    public Filtered getTextureFilteredImage(BufferedImage image, int barrier, boolean above) {
+    public Filtered getTextureFilteredImage(BufferedImage image, int barrier) {
         Raster raster = image.getData();
 
         WritableRaster output = raster.createCompatibleWritableRaster();
@@ -42,10 +42,7 @@ public class ImageProcessor {
                     contrast += diffPixel(pixel, down);
                 }
 
-                if (contrast > barrier && above) {
-                    output.setPixel(x, y, pixel);
-                    filtered++;
-                } else if (contrast < barrier && !above) {
+                if (contrast > barrier) {
                     output.setPixel(x, y, pixel);
                     filtered++;
                 }
@@ -163,6 +160,28 @@ public class ImageProcessor {
                     pixel = raster.getPixel(x, y, pixel);
                     output.setPixel(x, y, pixel);
                     filtered++;
+                }
+            }
+        }
+
+        return new Filtered(new BufferedImage(image.getColorModel(), output, true, new Hashtable<>()), filtered);
+    }
+
+    public Filtered applyRegionsFilter(BufferedImage image, UnionFind regions, Set<Integer> regionIds) {
+        Raster raster = image.getData();
+        WritableRaster output = raster.createCompatibleWritableRaster();
+
+        int filtered = 0;
+        int[] pixel = new int[4];
+        for (int y = raster.getMinY(); y < raster.getHeight(); y++) {
+            for (int x = raster.getMinX(); x < raster.getWidth(); x++) {
+                for (int regionId : regionIds) {
+                    if (regionId == regions.getRegion(x, y)) {
+                        pixel = raster.getPixel(x, y, pixel);
+                        output.setPixel(x, y, pixel);
+                        filtered++;
+                        break;
+                    }
                 }
             }
         }

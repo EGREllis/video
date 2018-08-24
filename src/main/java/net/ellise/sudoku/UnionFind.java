@@ -123,6 +123,20 @@ public class UnionFind {
         }
     }
 
+    public Set<Point> getPointsForRegion(int region) {
+        Set<Long> keys = new HashSet<>();
+        for (Map.Entry<Long,Integer> entry : map.entrySet()) {
+            if (entry.getValue().equals(region)) {
+                keys.add(entry.getKey());
+            }
+        }
+        Set<Point> points = new HashSet<>();
+        for (long key : keys) {
+            points.add(decode(key));
+        }
+        return points;
+    }
+
     public int getNumberOfRegions() {
         return nRegions;
     }

@@ -11,19 +11,10 @@ import java.awt.image.BufferedImage;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Display {
-    private static final String INITIAL_CONTRAST_SETTING = "2000";
-    private static final String INITIAL_BUCKET_WIDTH = "20";
-    private static final String INITIAL_BUCKET_HEIGHT = "20";
-    private static final String INITIAL_BUCKET_BARRIER = "75";
     private ImageProcessor processor;
     private Webcam webcam;
     private JFrame frame;
     private JLabel imageLabel;
-    private JTextField pixelBarrierText;
-    private JTextField bucketWidthText;
-    private JTextField bucketHeightText;
-    private JTextField bucketBarrierText;
-    private JToggleButton aboveBelowCheckBox;
     private AtomicBoolean started = new AtomicBoolean(false);
     private SlideShow slideShow;
     private Controller controller;
@@ -33,10 +24,6 @@ public class Display {
         this.processor = processor;
         this.frame = null;
         this.imageLabel = null;
-        this.aboveBelowCheckBox = null;
-        this.bucketWidthText = null;
-        this.bucketHeightText = null;
-        this.bucketBarrierText = null;
     }
 
     public void initialiseDisplay() throws Exception {
@@ -55,64 +42,6 @@ public class Display {
             constraints.gridwidth = 2;
             frame.add(separator, constraints);
 
-            JLabel barrierLabel = new JLabel("Pixel contrast barrier:");
-            constraints.gridy = 3;
-            constraints.gridwidth = 1;
-            frame.add(barrierLabel, constraints);
-
-            pixelBarrierText = new JTextField(INITIAL_CONTRAST_SETTING);
-            constraints.gridx = 2;
-            frame.add(pixelBarrierText, constraints);
-
-            JLabel aboveBelowLabel = new JLabel("Above/Below barrier (tick for above):");
-            constraints.gridy=4;
-            constraints.gridx=1;
-            frame.add(aboveBelowLabel, constraints);
-
-            aboveBelowCheckBox = new JToggleButton("Above barrier", true);
-            aboveBelowCheckBox.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    JToggleButton button = (JToggleButton)e.getSource();
-                    boolean mode = button.getModel().isSelected();
-                    System.out.println("Above/below: "+mode);
-                    if (mode) {
-                        button.setText("Above barrier");
-                    } else {
-                        button.setText("Below barrier");
-                    }
-                }
-            });
-            constraints.gridx = 2;
-            frame.add(aboveBelowCheckBox, constraints);
-
-            JLabel bucketWidthLabel = new JLabel("Buckets Width:");
-            constraints.gridx = 1;
-            constraints.gridy = 5;
-            frame.add(bucketWidthLabel, constraints);
-
-            bucketWidthText = new JTextField(INITIAL_BUCKET_WIDTH);
-            constraints.gridx = 2;
-            frame.add(bucketWidthText, constraints);
-
-            JLabel bucketHeightLabel = new JLabel("Buckets Height:");
-            constraints.gridx = 1;
-            constraints.gridy = 6;
-            frame.add(bucketHeightLabel, constraints);
-
-            bucketHeightText = new JTextField(INITIAL_BUCKET_HEIGHT);
-            constraints.gridx = 2;
-            frame.add(bucketHeightText, constraints);
-
-            JLabel bucketBarrierLabel = new JLabel("Buckets barrier:");
-            constraints.gridx = 1;
-            constraints.gridy = 7;
-            frame.add(bucketBarrierLabel, constraints);
-
-            bucketBarrierText = new JTextField(INITIAL_BUCKET_BARRIER);
-            constraints.gridx = 2;
-            frame.add(bucketBarrierText, constraints);
-
             JButton process = new JButton("Process");
             process.addActionListener(new ActionListener() {
                 @Override
@@ -121,7 +50,7 @@ public class Display {
                 }
             });
             constraints.gridx = 1;
-            constraints.gridy = 8;
+            constraints.gridy = 3;
             constraints.gridwidth = 2;
             frame.add(process, constraints);
 
@@ -143,18 +72,12 @@ public class Display {
     }
 
     private void updateDisplay() {
-        int barrier = Integer.valueOf(pixelBarrierText.getText());
-        int xWidth = Integer.valueOf(bucketWidthText.getText());
-        int yWidth = Integer.valueOf(bucketHeightText.getText());
-        int bucketBarrier = Integer.valueOf(bucketBarrierText.getText());
-        boolean isAbove = aboveBelowCheckBox.getModel().isSelected();
-
         slideShow.clear();
 
         BufferedImage image = webcam.getImage();
         slideShow.addSlide(image);
 
-        controller.process(image, barrier, isAbove, xWidth, yWidth, bucketBarrier);
+        controller.process(image);
 
         slideShow.start();
 

@@ -1,9 +1,11 @@
 package net.ellise.sudoku;
 
+import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.util.Map;
+import java.util.*;
 
 public class Controller {
+    private static final int INITIAL_TEXTURE_BARRIER = 2000;
     private ImageProcessor processor;
     private SlideShow slideShow;
 
@@ -12,44 +14,84 @@ public class Controller {
         this.slideShow = slideShow;
     }
 
-    public void process(BufferedImage image, int barrier, boolean isAbove, int xWidth, int yWidth, int bucketBarrier) {
-        Filtered currentFiltered = seekBestTextureFilter(image, barrier, isAbove);
+    public void process(BufferedImage image) {
+        Filtered currentFiltered = seekBestTextureFilter(image);
         slideShow.addSlide(currentFiltered.getImage());
 
-        Buckets pixelBuckets = Buckets.createBucket(xWidth, yWidth, currentFiltered.getImage());
-        BufferedImage pixelAnnotated = processor.filterMostDenseRowAndColumn(currentFiltered.getImage(), pixelBuckets);
-        slideShow.addSlide(pixelAnnotated);
-        Filtered bucketFiltered = processor.applyBucketFilter(bucketBarrier, currentFiltered.getImage(), pixelBuckets);
-        slideShow.addSlide(bucketFiltered.getImage());
-        Buckets bucketBuckets = Buckets.createBucket(xWidth*2, yWidth*2, bucketFiltered.getImage());
-        BufferedImage bucketAnnotated = processor.filterMostDenseRowAndColumn(currentFiltered.getImage(), bucketBuckets);
-        slideShow.addSlide(bucketAnnotated);
-
-        int neighbourRange = 2; // From black
+        int neighbourRange = 2;
         UnionFind regions = processor.determineRegions(currentFiltered.getImage(), neighbourRange);
         System.out.println(String.format("NRegions %1$d with pixel difference %2$d", regions.getNumberOfRegions(), neighbourRange));
-        Map<Integer,Integer> regionSize = regions.getSizeOfRegions();
-        slideShow.addSlide(processor.applyRegionFilter(currentFiltered.getImage(), regions, regions.getBiggestGroup()).getImage());
-        for (int region = 0; region < regions.getMaxRegion(); region++) {
-            if (regionSize.containsKey(region) && regionSize.get(region) > 30) {
-                slideShow.addSlide(processor.applyRegionFilter(currentFiltered.getImage(), regions, region).getImage());
-            }
-        }
+        int biggestRegion = regions.getBiggestGroup();
+        slideShow.addSlide(processor.applyRegionFilter(currentFiltered.getImage(), regions, biggestRegion).getImage());
+
+        Rectangle board = getBoundsOfPoints(regions.getPointsForRegion(biggestRegion));
+        int regionBarrier = 20;
+        Map<Integer,Rectangle> areas = getAreasOfInterest(regions, board, biggestRegion, regionBarrier);
+        System.out.println(String.format("Identified %1$d areas of interest inside board", areas.size()));
+        slideShow.addSlide(processor.applyRegionsFilter(currentFiltered.getImage(), regions, areas.keySet()).getImage());
     }
 
-    private Filtered seekBestTextureFilter(BufferedImage image, int barrier, boolean isAbove) {
+    private Map<Integer,Rectangle> getAreasOfInterest(UnionFind regions, Rectangle board, int boardId, int regionBarrier) {
+        Map<Integer, Integer> regionSize = regions.getSizeOfRegions();
+        Map<Integer, Rectangle> areasOfInterest = new HashMap<>();
+        for (Integer regionId : regions.getSizeOfRegions().keySet()) {
+            if (regionId == boardId) {
+                // the board;
+                continue;
+            } else if (regionSize.get(regionId) < regionBarrier) {
+                // To small;
+                continue;
+            }
+            Rectangle area = getBoundsOfPoints(regions.getPointsForRegion(regionId));
+            if (    area.x >= board.x && area.x + area.getWidth() <= board.x + board.width &&
+                    area.y >= board.y && area.y + area.getHeight() <= board.y + board.getHeight()) {
+                areasOfInterest.put(regionId, area);
+            }
+        }
+        return areasOfInterest;
+    }
+
+    private Rectangle getBoundsOfPoints(Set<Point> points) {
+        boolean first = true;
+        int minX = 0;
+        int minY = 0;
+        int maxX = 0;
+        int maxY = 0;
+        for (Point point : points) {
+            if (first) {
+                minX = point.x;
+                maxX = point.x;
+                minY = point.y;
+                maxY = point.y;
+                first = false;
+            } else {
+                if (point.x < minX) {
+                    minX = point.x;
+                } else if (point.x > maxX) {
+                    maxX = point.x;
+                }
+                if (point.y < minY) {
+                    minY = point.y;
+                } else if (point.y > maxY) {
+                    maxY = point.y;
+                }
+            }
+        }
+        return new Rectangle(minX, minY, maxX - minX, maxY - minY);
+    }
+
+    private Filtered seekBestTextureFilter(BufferedImage image) {
         int total = image.getHeight() * image.getWidth();
         int target = total / 10; // Aim for 10% of the pixels
-        int previousBarrier = barrier;
-        int currentBarrier = barrier/2;
-        Filtered previousFiltered = processor.getTextureFilteredImage(image, previousBarrier, isAbove);
-        Filtered currentFiltered = processor.getTextureFilteredImage(image, currentBarrier, isAbove);
+        int previousBarrier = INITIAL_TEXTURE_BARRIER;
+        int currentBarrier = INITIAL_TEXTURE_BARRIER/2;
+        Filtered previousFiltered = processor.getTextureFilteredImage(image, previousBarrier);
+        Filtered currentFiltered = processor.getTextureFilteredImage(image, currentBarrier);
         double tolerance = 0.0001;
         for (int i = 0; i < 8 ; i++) {
             double dPixels = (double)Math.abs(target - currentFiltered.getPresent());
             System.out.println(String.format("Distance to target %1$8f; Relative distance %2$8f; Tolerance %3$6f", dPixels, dPixels/total, tolerance));
             if ((dPixels/total) < tolerance) {
-                System.out.println("Reached target within tolerance");
                 break;
             }
             int x1 = previousBarrier;
@@ -87,7 +129,7 @@ public class Controller {
             previousBarrier = currentBarrier;
             currentBarrier = nextBarrier;
             previousFiltered = currentFiltered;
-            currentFiltered = processor.getTextureFilteredImage(image, currentBarrier, isAbove);
+            currentFiltered = processor.getTextureFilteredImage(image, currentBarrier);
         }
         return currentFiltered;
     }
