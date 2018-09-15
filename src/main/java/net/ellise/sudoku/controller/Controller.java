@@ -1,4 +1,9 @@
-package net.ellise.sudoku;
+package net.ellise.sudoku.controller;
+
+import net.ellise.sudoku.image.ImageProcessor;
+import net.ellise.sudoku.model.Filtered;
+import net.ellise.sudoku.model.UnionFind;
+import net.ellise.sudoku.swing.SlideShow;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;

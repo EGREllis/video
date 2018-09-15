@@ -1,4 +1,4 @@
-package net.ellise.sudoku;
+package net.ellise.sudoku.swing;
 
 import javax.swing.*;
 import java.awt.image.BufferedImage;

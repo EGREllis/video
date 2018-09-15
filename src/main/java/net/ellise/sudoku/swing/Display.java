@@ -1,7 +1,9 @@
-package net.ellise.sudoku;
+package net.ellise.sudoku.swing;
 
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamPanel;
+import net.ellise.sudoku.controller.Controller;
+import net.ellise.sudoku.image.ImageProcessor;
 
 import javax.swing.*;
 import java.awt.*;

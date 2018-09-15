@@ -1,4 +1,4 @@
-package net.ellise.sudoku;
+package net.ellise.sudoku.model;
 
 import java.awt.image.BufferedImage;
 
