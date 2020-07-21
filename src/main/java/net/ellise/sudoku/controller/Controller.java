@@ -1,6 +1,7 @@
 package net.ellise.sudoku.controller;
 
 import net.ellise.sudoku.image.ImageProcessor;
+import net.ellise.sudoku.image.OpticalCharacter;
 import net.ellise.sudoku.model.Filtered;
 import net.ellise.sudoku.model.UnionFind;
 import net.ellise.sudoku.swing.SlideShow;
@@ -33,7 +34,21 @@ public class Controller {
         int regionBarrier = 20;
         Map<Integer,Rectangle> areas = getAreasOfInterest(regions, board, biggestRegion, regionBarrier);
         System.out.println(String.format("Identified %1$d areas of interest inside board", areas.size()));
-        slideShow.addSlide(processor.applyRegionsFilter(currentFiltered.getImage(), regions, areas.keySet()).getImage());
+        Filtered digits = processor.applyRegionsFilter(currentFiltered.getImage(), regions, areas.keySet());
+        slideShow.addSlide(digits.getImage());
+
+        String text = OpticalCharacter.characterRecognition(digits.getImage());
+        System.out.println(String.format("Text: %1$s", text));
+        for (Map.Entry<Integer, Rectangle> entry : areas.entrySet()) {
+            BufferedImage digitOnly = processor.copyArea(digits.getImage(), entry.getValue(), moveToTopLeft(entry.getValue()));
+            slideShow.addSlide(digitOnly);
+            String digit = OpticalCharacter.characterRecognition(digitOnly);
+            System.out.println(String.format("Area %1$d, text: %2$s", entry.getKey(), digit));
+        }
+    }
+
+    private Rectangle moveToTopLeft(Rectangle rect) {
+        return new Rectangle(0, 0, rect.width, rect.height);
     }
 
     private Map<Integer,Rectangle> getAreasOfInterest(UnionFind regions, Rectangle board, int boardId, int regionBarrier) {

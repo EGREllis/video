@@ -48,7 +48,7 @@ public class Display {
             process.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
-                    Display.this.updateDisplay();
+                    Display.this.updateDisplay(true);
                 }
             });
             constraints.gridx = 1;
@@ -64,7 +64,7 @@ public class Display {
 
             slideShow = new SlideShow(imageLabel);
             controller = new Controller(processor, slideShow);
-            updateDisplay();
+            updateDisplay(false);
 
             frame.setResizable(true);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -73,16 +73,17 @@ public class Display {
         }
     }
 
-    private void updateDisplay() {
+    private void updateDisplay(boolean process) {
         slideShow.clear();
 
         BufferedImage image = webcam.getImage();
         slideShow.addSlide(image);
 
-        controller.process(image);
+        if (process) {
+            controller.process(image);
+        }
 
         slideShow.start();
-
         frame.repaint();
     }
 

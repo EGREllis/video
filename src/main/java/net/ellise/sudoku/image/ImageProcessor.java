@@ -7,6 +7,7 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Set;
@@ -161,11 +162,143 @@ public class ImageProcessor {
     private boolean isNotBlack(int[] pixel) {
         boolean result = false;
         for (int i = 0; i < 3; i++) {
-            if (Math.abs(pixel[i]) < 20) {
+            if (Math.abs(pixel[i]) < 30) {
                 result = true;
                 break;
             }
         }
         return result;
+    }
+
+    public BufferedImage copyArea(BufferedImage image, Rectangle from, Rectangle to) {
+        Raster data = image.getData();
+        WritableRaster raster = data.createCompatibleWritableRaster();
+        /*
+        int[] pixel = new int[4];
+        for (int y = 0; y <= from.getHeight(); y++) {
+            for (int x = 0; x <= from.getWidth(); x++) {
+                data.getPixel(from.x + x, from.y + y, pixel);
+                raster.setPixel(x + to.x, y + to.x, pixel);
+            }
+        }
+        */
+
+        copyAreaInvert(data, raster, from, to);
+        //Rectangle next = new Rectangle(to.width+1, 0, to.width, to.height);
+        /*
+        copyAreaBrightest(data, raster, from, next);
+
+        Rectangle second = new Rectangle( to.width*2 +2, 0, to.width, to.height);
+        copyAreaNotBlack(data, raster, from, second);
+
+        Rectangle third = new Rectangle(to.width*3+3, 0, to.width, to.height);
+        copyAreaAndFill(data, raster, from, third);
+        */
+
+        return new BufferedImage(image.getColorModel(), raster, image.isAlphaPremultiplied(), new Hashtable<>());
+    }
+
+    private long getBrightness(int[] pixel) {
+        long sum = 0;
+        for (int i = 0; i < 3; i++) {
+            sum += pixel[i];
+        }
+        return sum;
+    }
+
+    private int[] getBrightestPixel(Raster data, Rectangle from) {
+        int[] pixel = new int[4];
+        int[] brightest = null;
+        long bright = 0;
+
+        for (int y = 0; y <= from.getHeight(); y++) {
+            for (int x = 0; x <= from.getWidth(); x++) {
+                data.getPixel(x + from.x, y + from.y, pixel);
+                long currentBright = getBrightness(pixel);
+                if (y == 0 && x == 0) {
+                    bright = currentBright;
+                    brightest = Arrays.copyOf(pixel, 4);
+                } else if (bright < currentBright) {
+                    bright = currentBright;
+                    brightest = Arrays.copyOf(pixel, 4);
+                }
+            }
+        }
+        return brightest;
+    }
+
+    private void copyAreaBrightest(Raster data, WritableRaster raster, Rectangle from, Rectangle to) {
+        int[] pixel = new int[4];
+        int[] brightest = getBrightestPixel(data, from);
+
+        for (int y = 0; y <= from.height; y++) {
+            for (int x = 0; x <= from.width; x++) {
+                data.getPixel(x + from.x, y + from.y, pixel);
+                raster.setPixel(x + to.x, y + to.y, brightest);
+            }
+        }
+    }
+
+    private void copyAreaInvert(Raster data, WritableRaster raster, Rectangle from, Rectangle to) {
+        int[] pixel = new int[4];
+        int[] brightest = getBrightestPixel(data, from);
+
+        for (int y = 0; y <= from.height; y++) {
+            for (int x = 0; x <= from.width; x++) {
+                data.getPixel(x + from.x, y + from.y, pixel);
+                if (!isNotBlack(pixel)) {
+                    raster.setPixel(x+to.x, y+to.y, brightest);
+                }
+            }
+        }
+    }
+
+    private void copyAreaNotBlack(Raster data, WritableRaster raster, Rectangle from, Rectangle to) {
+        int[] pixel = new int[4];
+        int[] brightest = getBrightestPixel(data, from);
+
+        for (int y = 0; y <= from.height; y++) {
+            for (int x = 0; x <= from.width; x++) {
+                data.getPixel(x + from.x, y + from.y, pixel);
+                if (isNotBlack(pixel)) {
+                    raster.setPixel(x + to.x, y + to.y, brightest);
+                }
+            }
+        }
+    }
+
+    private void copyAreaAndFill(Raster data, WritableRaster raster, Rectangle from, Rectangle to) {
+        int[] pixel = new int[4];
+        int[] colouredPixel = getBrightestPixel(data, from);
+
+        for (int y = 0; y <= from.getHeight(); y++) {
+            boolean inside = false;
+            boolean wasBlack = true;
+            boolean isColoured;
+            for (int x = 0; x <= from.getWidth(); x++) {
+                data.getPixel(from.x + x, from.y + y, pixel);
+                isColoured = isNotBlack(pixel);
+
+
+                // We only need to change state when we leave a barrier
+                if (!wasBlack && !isColoured) {
+                    // Was not black, now black -> left a barrier
+                    inside = !inside;
+                    wasBlack = true;
+                } else if (wasBlack && isColoured) {
+                    wasBlack = false;
+                }
+
+                if (inside) {
+                    raster.setPixel(x + to.x, y+ to.y, colouredPixel);
+                    System.out.print("X");
+                } else {
+                    raster.setPixel(x + to.x, y + to.y, pixel);
+                    System.out.print(" ");
+                }
+            }
+            System.out.println();
+        }
+        System.out.println();
     }
 }
